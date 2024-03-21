@@ -150,7 +150,7 @@ struct MemoryEditor {
     }
 
     // Standalone Memory Editor window
-    void DrawWindow(string title, void[] mem_data, size_t base_display_addr = 0x0000)
+    bool DrawWindow(string title, void[] mem_data, size_t base_display_addr = 0x0000)
     {
         Sizes s;
         CalcSizes(s, mem_data.length, base_display_addr);
@@ -170,6 +170,7 @@ struct MemoryEditor {
             }
         }
         ImGui.End();
+        return Open;
     }
 
     // Memory Editor contents only
