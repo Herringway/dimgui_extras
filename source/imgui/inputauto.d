@@ -28,12 +28,11 @@ bool InputAuto(T)(string label, T* v, int step = 1, int step_fast = 100, ImGuiIn
     return ImGui.InputScalar(label, type, cast(void*)v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 }
 
-bool InputString(string label, string* v, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None) {
+bool InputString(string label, char[]* v, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None, ImVec2 multilineDimensions = ImVec2.init) {
 	static struct UserData {
-		string* buf;
+		char[]* buf;
 	}
-	auto userdata = UserData(v);
-	return ImGui.InputText(label, cast(char[])*v, flags | ImGuiInputTextFlags.CallbackResize, cast(ImGuiInputTextCallback)(ImGuiInputTextCallbackData* data) {
+    static int callback(ImGuiInputTextCallbackData* data) {
 		auto userdata = cast(UserData*)data.UserData;
         import std.logger; debug infof("%s %s %s %s", *userdata.buf, data.BufTextLen, data.Buf, cast(ImGuiInputTextFlags)data.EventFlag);
         if (data.EventFlag == ImGuiInputTextFlags.CallbackResize) {
@@ -42,10 +41,16 @@ bool InputString(string label, string* v, ImGuiInputTextFlags flags = ImGuiInput
             }
             //userdata.buf.length = data.BufTextLen + 1;
 
-            data.Buf = cast(char[])*userdata.buf;
+            data.Buf = *userdata.buf;
             //data.Buf = data.Buf[0 .. $ - 1];
             //*userdata.buf = (*userdata.buf)[0..$-1];
         }
         return 0;
-	}, &userdata);
+	}
+	auto userdata = UserData(v);
+    if (multilineDimensions != ImVec2.init) {
+        return ImGui.InputTextMultiline(label, *v, multilineDimensions, flags | ImGuiInputTextFlags.CallbackResize, &callback, &userdata);
+    } else {
+        return ImGui.InputText(label, *v, flags | ImGuiInputTextFlags.CallbackResize, &callback, &userdata);
+    }
 }
