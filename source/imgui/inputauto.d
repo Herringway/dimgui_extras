@@ -3,29 +3,34 @@ module imgui.inputauto;
 import d_imgui.imgui_h;
 import ImGui = d_imgui;
 
-bool InputAuto(T)(string label, T* v, int step = 1, int step_fast = 100, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None) {
+bool InputAuto(T)(string label, ref T v, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None) {
+	static if (!is(T == char[])) {
+		T step = 1;
+		T step_fast = 100;
+	}
 	static if (is(T == ubyte)) {
-		enum type = ImGuiDataType.U8;
+		return ImGui.InputScalar(label, ImGuiDataType.U8, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 	} else static if (is(T == byte)) {
-		enum type = ImGuiDataType.S8;
+		return ImGui.InputScalar(label, ImGuiDataType.S8, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 	} else static if (is(T == ushort)) {
-		enum type = ImGuiDataType.U16;
+		return ImGui.InputScalar(label, ImGuiDataType.U16, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 	} else static if (is(T == short)) {
-		enum type = ImGuiDataType.S16;
+		return ImGui.InputScalar(label, ImGuiDataType.S16, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 	} else static if (is(T == uint)) {
-		enum type = ImGuiDataType.U32;
+		return ImGui.InputScalar(label, ImGuiDataType.U32, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 	} else static if (is(T == int)) {
-		enum type = ImGuiDataType.S32;
+		return ImGui.InputScalar(label, ImGuiDataType.S32, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 	} else static if (is(T == ulong)) {
-		enum type = ImGuiDataType.U64;
+		return ImGui.InputScalar(label, ImGuiDataType.U64, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 	} else static if (is(T == long)) {
-		enum type = ImGuiDataType.S64;
+		return ImGui.InputScalar(label, ImGuiDataType.S64, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 	} else static if (is(T == float)) {
-		enum type = ImGuiDataType.Float;
+		return ImGui.InputScalar(label, ImGuiDataType.Float, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%.3f", flags);
 	} else static if (is(T == double)) {
-		enum type = ImGuiDataType.Double;
+		return ImGui.InputScalar(label, ImGuiDataType.Double, cast(void*)&v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%.3f", flags);
+	} else static if (is(T == char[])) {
+		return InputString(label, &v, flags);
 	} else static assert(0, "Cannot handle this type");
-	return ImGui.InputScalar(label, type, cast(void*)v, cast(void*)(step > 0 ? &step : null), cast(void*)(step_fast > 0 ? &step_fast : null), "%d", flags);
 }
 
 bool InputString(string label, char[]* v, ImGuiInputTextFlags flags = ImGuiInputTextFlags.None, ImVec2 multilineDimensions = ImVec2.init) {
