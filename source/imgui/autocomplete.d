@@ -6,10 +6,15 @@ import ImGui = d_imgui;
 import std.algorithm.comparison;
 import std.algorithm.searching;
 import std.logger;
+import std.range;
+import std.uni;
 
+auto autoComplete(R)(R range) {
+	return AutoComplete!R(range);
+}
 
-struct AutoComplete {
-	string[] entries;
+struct AutoComplete(R) {
+	R entries;
 	bool wrap = true; // Selection wraps around when pressing up/down
 	private bool isPopupOpen = false;
 	private int activeIdx = -1; // Index of currently 'active' item by use of up/down keys
@@ -22,7 +27,7 @@ struct AutoComplete {
 		data.BufTextLen = cast(int)entry.length;
 		data.BufDirty = true;
 	}
-	private int InputCallback(ref ImGuiInputTextCallbackData data) @safe pure nothrow @nogc {
+	private int InputCallback(ref ImGuiInputTextCallbackData data) @safe pure {
 		switch (data.EventFlag) {
 			case ImGuiInputTextFlags.CallbackCompletion:
 				if (isPopupOpen && (activeIdx != -1)) {
@@ -61,7 +66,7 @@ struct AutoComplete {
 		return 0;
 	}
 	private const(char)[] DrawInput(string label, out ImVec2 popupPos, out ImVec2 popupSize, out bool isFocused) {
-		static int InputCallback(ImGuiInputTextCallbackData* data) @system pure nothrow @nogc {
+		static int InputCallback(ImGuiInputTextCallbackData* data) @system pure {
 			AutoComplete* state = cast(AutoComplete*)data.UserData;
 			return state.InputCallback(*data);
 		}
@@ -73,7 +78,7 @@ struct AutoComplete {
 			ImGuiInputTextFlags.CallbackHistory;
 
 
-		if (ImGui.InputText(label, inputBuf[], flags, &InputCallback, &this)) {
+		if (ImGui.InputText(label, inputBuf[], flags, cast(ImGuiInputTextCallback)&InputCallback, &this)) {
 			if (isPopupOpen && (activeIdx != -1)) {
 				// This means that enter was pressed whilst
 				// the popup was open and we had an 'active' item.
@@ -133,8 +138,8 @@ struct AutoComplete {
 		ImGui.Begin("input_popup", null, flags);
 		ImGui.PushTabStop(false);
 
-		foreach (idx, entry; entries) {
-			if (!entry.startsWith(input)) {
+		foreach (idx, entry; entries.enumerate) {
+			if (!entry.startsWith!((x,y) => std.uni.toLower(x) == std.uni.toLower(y))(input)) {
 				continue;
 			}
 			// Track if we're drawing the active index so we
@@ -191,7 +196,7 @@ struct AutoComplete {
 	}
 }
 
-private int getNextIndex(alias pred = (x,y) => x.startsWith(y))(const char[][] haystack, const char[] needle, int current, bool up, bool wrap) {
+private int getNextIndex(alias pred = (x,y) => x.startsWith!((x,y) => std.uni.toLower(x) == std.uni.toLower(y))(y), R)(R haystack, const char[] needle, int current, bool up, bool wrap) {
 	int newIdx = current;
 	if (newIdx == -1) {
 		newIdx = cast(int)haystack.length;
@@ -224,14 +229,14 @@ private int getNextIndex(alias pred = (x,y) => x.startsWith(y))(const char[][] h
 	if (!pred(haystack[newIdx], needle)) { // if no match found, try to work backwards from starting point
 		newIdx = -1;
 		if (up) {
-			foreach (idx, entry; haystack[(current == -1) ? 0 : current .. $]) {
+			foreach (idx, entry; haystack[(current == -1) ? 0 : current .. $].enumerate) {
 				if (pred(entry, needle)) {
 					newIdx = cast(int)idx;
 					break;
 				}
 			}
 		} else {
-			foreach_reverse (idx, entry; haystack[0 .. (current == -1) ? $ : current]) {
+			foreach_reverse (idx, entry; haystack[0 .. (current == -1) ? $ : current].enumerate) {
 				if (pred(entry, needle)) {
 					newIdx = cast(int)idx;
 					break;
