@@ -9,53 +9,52 @@ import std.logger;
 import std.range;
 import std.uni;
 
-auto autoComplete(R)(R range) {
-	return AutoComplete!R(range);
+private struct AutoCompleteState {
+	bool isPopupOpen = false;
+	int activeIdx = -1; // Index of currently 'active' item by use of up/down keys
+	int clickedIdx = -1; // Index of popup item clicked with the mouse
+	bool selectionChanged = false; // Flag to help focus the correct item when selecting active item
 }
-
-struct AutoComplete(R) {
+private struct AutoCompleteStateCallback(R) {
 	R entries;
-	bool wrap = true; // Selection wraps around when pressing up/down
-	private bool isPopupOpen = false;
-	private int activeIdx = -1; // Index of currently 'active' item by use of up/down keys
-	private int clickedIdx = -1; // Index of popup item clicked with the mouse
-	private bool selectionChanged = false; // Flag to help focus the correct item when selecting active item
-	private void SetInputFromActiveIndex(ref ImGuiInputTextCallbackData data, int entryIndex) @safe pure nothrow @nogc {
-		string entry = entries[entryIndex];
+	bool wrap;
+	AutoCompleteState state;
+	int InputCallback(ref ImGuiInputTextCallbackData data) @safe pure {
+		void SetInputFromActiveIndex(int entryIndex) @safe pure nothrow @nogc {
+			string entry = entries[entryIndex];
 
-		data.Buf[0 .. entry.length] = entry;
-		data.BufTextLen = cast(int)entry.length;
-		data.BufDirty = true;
-	}
-	private int InputCallback(ref ImGuiInputTextCallbackData data) @safe pure {
+			data.Buf[0 .. entry.length] = entry;
+			data.BufTextLen = cast(int)entry.length;
+			data.BufDirty = true;
+		}
 		switch (data.EventFlag) {
 			case ImGuiInputTextFlags.CallbackCompletion:
-				if (isPopupOpen && (activeIdx != -1)) {
+				if (state.isPopupOpen && (state.activeIdx != -1)) {
 					// Tab was pressed, grab the item's text
-					SetInputFromActiveIndex(data, activeIdx);
+					SetInputFromActiveIndex(state.activeIdx);
 				}
 
-				isPopupOpen = false;
-				activeIdx = -1;
-				clickedIdx = -1;
+				state.isPopupOpen = false;
+				state.activeIdx = -1;
+				state.clickedIdx = -1;
 				break;
 			case ImGuiInputTextFlags.CallbackHistory:
 				if (data.EventKey.among(ImGuiKey.UpArrow, ImGuiKey.DownArrow)) {
-					int newIdx = getNextIndex(entries, data.Buf[0 .. data.BufTextLen], activeIdx, data.EventKey == ImGuiKey.UpArrow, wrap);
-					selectionChanged = newIdx != activeIdx;
-					activeIdx = newIdx;
+					int newIdx = getNextIndex(entries, data.Buf[0 .. data.BufTextLen], state.activeIdx, data.EventKey == ImGuiKey.UpArrow, wrap);
+					state.selectionChanged = newIdx != state.activeIdx;
+					state.activeIdx = newIdx;
 				}
-				isPopupOpen = activeIdx != -1;
+				state.isPopupOpen = state.activeIdx != -1;
 				break;
 			case ImGuiInputTextFlags.CallbackAlways:
-				if (clickedIdx != -1) {
+				if (state.clickedIdx != -1) {
 					// The user has clicked an item, grab the item text
-					SetInputFromActiveIndex(data, clickedIdx);
+					SetInputFromActiveIndex(state.clickedIdx);
 
 					// Hide the popup
-					isPopupOpen = false;
-					activeIdx = -1;
-					clickedIdx = -1;
+					state.isPopupOpen = false;
+					state.activeIdx = -1;
+					state.clickedIdx = -1;
 				}
 				break;
 			case ImGuiInputTextFlags.CallbackCharFilter:
@@ -65,9 +64,14 @@ struct AutoComplete(R) {
 
 		return 0;
 	}
-	private const(char)[] DrawInput(string label, out ImVec2 popupPos, out ImVec2 popupSize, out bool isFocused) {
+}
+
+struct AutoComplete {
+	bool wrap = true; // Selection wraps around when pressing up/down
+	AutoCompleteState state;
+	private const(char)[] DrawInput(R)(R entries, string label, out ImVec2 popupPos, out ImVec2 popupSize, out bool isFocused) {
 		static int InputCallback(ImGuiInputTextCallbackData* data) @system pure {
-			AutoComplete* state = cast(AutoComplete*)data.UserData;
+			AutoCompleteStateCallback!R* state = cast(AutoCompleteStateCallback!R*)data.UserData;
 			return state.InputCallback(*data);
 		}
 		static char[256] inputBuf = '\0';
@@ -77,13 +81,14 @@ struct AutoComplete(R) {
 			ImGuiInputTextFlags.CallbackCompletion |
 			ImGuiInputTextFlags.CallbackHistory;
 
+		auto callbackState = AutoCompleteStateCallback!R(entries, wrap, state);
 
-		if (ImGui.InputText(label, inputBuf[], flags, cast(ImGuiInputTextCallback)&InputCallback, &this)) {
-			if (isPopupOpen && (activeIdx != -1)) {
+		if (ImGui.InputText(label, inputBuf[], flags, cast(ImGuiInputTextCallback)&InputCallback, &callbackState)) {
+			if (callbackState.state.isPopupOpen && (callbackState.state.activeIdx != -1)) {
 				// This means that enter was pressed whilst
 				// the popup was open and we had an 'active' item.
 				// So we copy the entry to the input buffer here
-				string entry = entries[activeIdx];
+				string entry = entries[callbackState.state.activeIdx];
 
 				inputBuf[0 .. entry.length] = entry;
 				inputBuf[entry.length] = '\0';
@@ -93,19 +98,20 @@ struct AutoComplete(R) {
 			}
 
 			// Hide popup
-			isPopupOpen = false;
-			activeIdx = -1;
+			callbackState.state.isPopupOpen = false;
+			callbackState.state.activeIdx = -1;
 		}
+		state = callbackState.state;
 		isFocused = ImGui.IsItemFocused();
 
 		// Restore focus to the input box if we just clicked an item
-		if(clickedIdx != -1) {
+		if(state.clickedIdx != -1) {
 			ImGui.SetKeyboardFocusHere(-1);
 
 			// NOTE: We do not reset the 'clickedIdx' here because
 			// we want to let the callback handle it in order to
 			// modify the buffer, therefore we simply restore keyboard input instead
-			isPopupOpen = false;
+			state.isPopupOpen = false;
 		}
 
 		// Get input box position, so we can place the popup under it
@@ -117,8 +123,8 @@ struct AutoComplete(R) {
 		return inputBuf[0 .. inputBuf[].countUntil('\0')];
 	}
 
-	private bool DrawPopup(const ImVec2 pos, const ImVec2 size, const char[] input) {
-		if (!isPopupOpen) {
+	private bool DrawPopup(R)(R entries, const ImVec2 pos, const ImVec2 size, const char[] input) {
+		if (!state.isPopupOpen) {
 			return false;
 		}
 
@@ -135,7 +141,7 @@ struct AutoComplete(R) {
 
 		ImGui.SetNextWindowPos(pos);
 		ImGui.SetNextWindowSize(size);
-		ImGui.Begin("input_popup", null, flags);
+		ImGui.BeginChild("input_popup", ImVec2(), false, flags);
 		ImGui.PushTabStop(false);
 
 		foreach (idx, entry; entries.enumerate) {
@@ -144,7 +150,7 @@ struct AutoComplete(R) {
 			}
 			// Track if we're drawing the active index so we
 			// can scroll to it if it has changed
-			bool isIndexActive = activeIdx == idx;
+			bool isIndexActive = state.activeIdx == idx;
 
 			if (isIndexActive) {
 				// Draw the currently 'active' item differently
@@ -156,15 +162,15 @@ struct AutoComplete(R) {
 			if (ImGui.Selectable(entry, isIndexActive)) {
 				// And item was clicked, notify the input
 				// callback so that it can modify the input buffer
-				clickedIdx = cast(int)idx;
+				state.clickedIdx = cast(int)idx;
 			}
 			ImGui.PopID();
 
 			if (isIndexActive) {
-				if (selectionChanged){
+				if (state.selectionChanged){
 					// Make sure we bring the currently 'active' item into view.
 					ImGui.SetScrollHereY();
-					selectionChanged = false;
+					state.selectionChanged = false;
 				}
 
 				ImGui.PopStyleColor(1);
@@ -174,23 +180,23 @@ struct AutoComplete(R) {
 		const result = ImGui.IsWindowFocused(ImGuiFocusedFlags.RootWindow);
 
 		ImGui.PopTabStop();
-		ImGui.End();
+		ImGui.EndChild();
 		ImGui.PopStyleVar(1);
 		return result;
 	}
-	const(char)[] Draw(string label) {
+	const(char)[] Draw(R)(string label, R entries) {
 		ImVec2 popupPos, popupSize;
 		bool isWindowFocused;
 
 		// Draw the main window
-		const input = DrawInput(label, popupPos, popupSize, isWindowFocused);
+		const input = DrawInput(entries, label, popupPos, popupSize, isWindowFocused);
 
 		// Draw the popup window
-		const isPopupFocused = DrawPopup(popupPos, popupSize, input);
+		const isPopupFocused = DrawPopup(entries, popupPos, popupSize, input);
 
 		// If neither of the windows has focus, hide the popup
 		if(!isWindowFocused && !isPopupFocused) {
-			isPopupOpen = false;
+			state.isPopupOpen = false;
 		}
 		return input;
 	}
