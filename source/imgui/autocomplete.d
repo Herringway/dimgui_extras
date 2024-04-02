@@ -20,7 +20,7 @@ private struct AutoCompleteStateCallback(R) {
 	bool wrap;
 	AutoCompleteState state;
 	int InputCallback(ref ImGuiInputTextCallbackData data) @safe pure {
-		void SetInputFromActiveIndex(int entryIndex) @safe pure nothrow @nogc {
+		void SetInputFromActiveIndex(int entryIndex) @safe pure {
 			string entry = entries[entryIndex];
 
 			data.Buf[0 .. entry.length] = entry;
