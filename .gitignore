@@ -14,4 +14,4 @@ dimgui_extras-test-*
 *.obj
 *.lst
 dub.selections.json
-imgui.ini
+*.ini
