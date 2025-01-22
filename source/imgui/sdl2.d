@@ -1,9 +1,13 @@
-module imgui.sdl;
+module imgui.sdl2;
 // dear imgui: Platform Backend for SDL2
 // This needs to be used along with a Renderer (e.g. DirectX11, OpenGL3, Vulkan..)
 // (Info: SDL2 is a cross-platform general purpose library for handling windows, inputs, graphics context creation, etc.)
 // (Prefer SDL 2.0.5+ for full feature support.)
 
+// SDL
+import bindbc.sdl;
+
+static if (SDL_MAJOR_VERSION == 2) {
 // Implemented features:
 //  [X] Platform: Clipboard support.
 //  [X] Platform: Keyboard support. Since 1.87 we are using the io.AddKeyEvent() function. Pass ImGuiKey values to all key functions e.g. ImGui::IsKeyPressed(ImGuiKey_Space). [Legacy SDL_SCANCODE_* values will also be supported unless IMGUI_DISABLE_OBSOLETE_KEYIO is set]
@@ -68,9 +72,6 @@ import ImGui = d_imgui.imgui;
 import d_imgui.imgui_h;
 
 import core.stdc.stdint;
-
-// SDL
-import bindbc.sdl;
 
 enum SDL_HAS_CAPTURE_AND_GLOBAL_MOUSE = 1;
 
@@ -548,4 +549,5 @@ void ImGui_ImplSDL2_NewFrame()
 
     // Update game controllers (if enabled and available)
     ImGui_ImplSDL2_UpdateGamepads();
+}
 }

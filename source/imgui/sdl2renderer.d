@@ -1,7 +1,10 @@
-module imgui.sdlrenderer;
+module imgui.sdl2renderer;
 // dear imgui: Renderer Backend for SDL_Renderer
 // (Requires: SDL 2.0.17+)
 
+// SDL
+import bindbc.sdl;
+static if (SDL_MAJOR_VERSION == 2) {
 // Important to understand: SDL_Renderer is an _optional_ component of SDL.
 // For a multi-platform app consider using e.g. SDL+DirectX on Windows and SDL+OpenGL on Linux/OSX.
 // If your application will want to render any non trivial amount of graphics other than UI,
@@ -29,9 +32,6 @@ import ImGui = d_imgui.imgui;
 import d_imgui.imgui_h;
 
 import core.stdc.stdint;
-
-// SDL
-import bindbc.sdl;
 
 // SDL_Renderer data
 struct ImGui_ImplSDLRenderer_Data
@@ -242,4 +242,5 @@ bool ImGui_ImplSDLRenderer_CreateDeviceObjects()
 void ImGui_ImplSDLRenderer_DestroyDeviceObjects()
 {
     ImGui_ImplSDLRenderer_DestroyFontsTexture();
+}
 }

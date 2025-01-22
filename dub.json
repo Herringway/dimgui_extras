@@ -7,9 +7,23 @@
 	"license": "BSL-1.0",
 	"targetType": "sourceLibrary",
 	"name": "dimgui_extras",
+	"configurations": [
+		{
+			"name": "sdl3",
+			"dependencies": {
+				"bindbc-sdl": "2.0.0-prerelease.4",
+			}
+		},
+		{
+			"name": "sdl2",
+			# "dependencies": {
+			# 	"bindbc-sdl": "~>1.4.1"
+			# },
+			"versions": ["SDL_2018"]
+		}
+	],
+	"dflags": ["-verrors=0"],
 	"dependencies": {
-		"d_imgui": { "repository": "git+https://github.com/Herringway/imgui.git", "version": "d88d230e58c85866a1225f53256f2bbdc5d1f8d3" },
-		"bindbc-sdl": "~>1.4.1"
+		"d_imgui": { "repository": "git+https://github.com/Herringway/imgui.git", "version": "d88d230e58c85866a1225f53256f2bbdc5d1f8d3" }
 	},
-	"versions": ["SDL_2018"]
 }
